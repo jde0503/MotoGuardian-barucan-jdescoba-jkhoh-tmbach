@@ -12,6 +12,10 @@ h6 {
   font-weight: 700;
 }
 
+a.navbar-brand {
+    font-size: 3.25rem;
+}
+
 header.masthead {
   position: relative;
   background-color: #343a40;
