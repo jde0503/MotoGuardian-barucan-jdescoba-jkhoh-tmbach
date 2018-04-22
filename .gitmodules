@@ -1,0 +1,3 @@
+[submodule "Assignment2-CloudDeployment/motoguardian-web-app"]
+	path = Assignment2-CloudDeployment/motoguardian-web-app
+	url = https://github.com/jde0503/motoguardian-web-app.git
