@@ -4,3 +4,6 @@
 [submodule "Assignment3-CompetitiveAnalysis/motoguardian-web-app"]
 	path = Assignment3-CompetitiveAnalysis/motoguardian-web-app
 	url = https://github.com/jde0503/motoguardian-web-app.git
+[submodule "Assignment4-Accessibility/motoguardian-web-app"]
+	path = Assignment4-Accessibility/motoguardian-web-app
+	url = https://github.com/jde0503/motoguardian-web-app.git
