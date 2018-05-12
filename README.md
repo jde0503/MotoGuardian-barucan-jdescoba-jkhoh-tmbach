@@ -41,6 +41,12 @@ Installing a virtual environment allows you to manage different Python environme
 
 ### Running the Django Project
 1. `cd` into the Motoguardian directory if you are not already there.
-2. Run `python manage.py runserver`
-3. Visit `http://127.0.0.1:8000` in your browser.
-   * The application should load
+2. a. [Local Build] Run `python manage.py runserver`
+   b. Visit `http://127.0.0.1:8000` in your browser
+      * The application should load
+3. a. [Vagrant Build] Run `python manage.py runserver 0.0.0.0:####` where #### is a guest port 
+      number given in your `Vagrantfile`
+      * For example `config.vm.network "forwarded_port", guest: 5000, host: 8080` means that the Vagrant application
+        will be running at port `5000` in the VM machine and port `8080` on the host machine.
+   b. Visit `http:/127.0.0.1:####` in your browser, where #### is the host port number in your `Vagrantfile`
+      * The application should load
