@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<head>
+	<title>MotoGuardian-Register</title>
+	
+</head>
+<body>
+	<div class="container">
+		<h1>Registration Page</h1>
+		<form id="register"  method="post" action="{% url 'register' %}">
+			{% csrf_token %}
+			{% if form.errors %}
+			<p>There are errors in the form!</p>
+			{% endif %}
+			
+			{{form.as_p}}
+
+			
+			<input class="btn btn-secondary" type="submit" value="Submit">
+			
+			
+		</form>
+	</div>
+</body>
+{% endblock %}

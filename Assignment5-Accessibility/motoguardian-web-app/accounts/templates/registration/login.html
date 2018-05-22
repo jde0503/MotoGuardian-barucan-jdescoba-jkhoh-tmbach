@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<head>
+	<title>MotoGuardian-Login</title>
+</head>
+<body>
+	<h1>Login to MotoGuardian Dashboard</h1>
+	{% if form.errors %}
+	<p>Invalid username or password</p>
+	{% endif %}
+
+	{% if next %}
+	<p>Hey, you can't access that page</p>
+	{% endif %}
+
+	<form method="post" >
+		{% csrf_token %}
+		{{ form.as_p }}
+		<!-- <p>Username: {{ user.username }}</p>
+		<p>Password: {{ user.password }}</p> -->
+
+		<p><input class="btn btn-primary" type="submit" value="Login" ></p>
+		<a class="btn btn-secondary" href="{% url 'register' %}">Register</a>
+
+		<!-- <input type="hidden" name="next" value="{{ next }}"> -->
+	</form>
+</body>
+{% endblock %}
