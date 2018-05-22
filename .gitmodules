@@ -7,6 +7,3 @@
 [submodule "Assignment4-Accessibility/motoguardian-web-app"]
 	path = Assignment4-Accessibility/motoguardian-web-app
 	url = https://github.com/jde0503/motoguardian-web-app.git
-[submodule "Assignment7-SiteImprovements/motoguardian-web-app"]
-	path = Assignment7-SiteImprovements/motoguardian-web-app
-	url = https://github.com/jde0503/motoguardian-web-app.git
