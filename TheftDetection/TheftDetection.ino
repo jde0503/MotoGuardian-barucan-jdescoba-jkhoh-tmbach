@@ -1,88 +1,78 @@
-/******************************************************************************
+i/******************************************************************************
 * Author: Team MotoGuardian
 * Class:  ECE 140B
 *
 * File Name: TheftDetection.ino
-* Description: Implements Theft Detection for MotoGuardian.
+* Description: Master control software for theft detection using Arduino 101 IMU.
+*              Sends signal to slave notify end-user.
 ******************************************************************************/
 // Include necessary libraries.
 #include <CurieTimerOne.h>
 #include <BMI160.h>
 #include <CurieIMU.h>
-#include <Adafruit_FONA.h>
-
+#include <math.h>
 
 // Define global constants.
-#define FONA_RST 4
-#define RF_RX 8
-#define LED 13
-const bool debug = false;  // Set to false and reupload before using with FONA.
-char smsaddr[] = "+18317940460";
-char smsmsg[] = "This is a message from your MotoGuardian. A threat to your vehicle has been detected. "
-                "Please inspect it.\n\nIf this was a false alarm, you may reset the system by disarming "
-                "and then re-arming your MotoGuardian.\n\nIf your vehicle has been stolen, please call 9-1-1 "
-                "to report the theft, and follow this link <insert-link-here> to begin tracking your vehicle.";
-
+#define TRIGGER_PIN 8
+#define TRIGGER_RST 9
+const byte sensitvity = 20; // 1-More sensitive -> 100-Less Sensitive
+const float HPF = 0.98;  // High-Pass filter coeff. LPF = 1 - HPF.
+const int samplePeriod = 100000;  //microsec
+const bool verbosity = false;
 
 // Declare and initialize global variables.
-volatile bool newState = false;
-volatile bool newMotionDetected = false;
+volatile bool newSample = false;
 bool armed = false;
-bool alertOn = false;
-Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
+bool onAlert = false;
+float A_x, A_y, A_z;
+float G_x, G_y, G_z;
+float currentAngle;
+float oldAngle;
+char command;
 
 
-/*** ISR to change armed state ***/
-void notifyChangeOfState() {
-    newState = true;
+/*** ISR to sample IMU ***/
+void sampleIMU() {
+    CurieIMU.readAccelerometerScaled(A_x, A_y, A_z);
+    CurieIMU.readGyroScaled(G_x, G_y, G_z);
+    newSample = true;
 }
 
 
-/*** ISR to detect motion ***/
-static void detectMotion(void){
-    if (CurieIMU.getInterruptStatus(CURIE_IMU_MOTION)) {
-        if ( (CurieIMU.motionDetected(X_AXIS, POSITIVE)) || (CurieIMU.motionDetected(X_AXIS, NEGATIVE)) ||
-             (CurieIMU.motionDetected(Y_AXIS, POSITIVE)) || (CurieIMU.motionDetected(Y_AXIS, NEGATIVE)) ||
-             (CurieIMU.motionDetected(Z_AXIS, POSITIVE)) || (CurieIMU.motionDetected(Z_AXIS, NEGATIVE)) )
-            newMotionDetected = true;
-    }
-}
-
-
-/*** Helper function to change Armed/Disarmed state ***/
-void changeState() {
-    armed = !armed;
-    if (!armed) {
-        alertOn = false;
-        CurieIMU.noInterrupts(CURIE_IMU_MOTION);
-    }
-    else
-        CurieIMU.interrupts(CURIE_IMU_MOTION);
-        
-    if (debug) {
-        if (armed) {
-            Serial.println("System armed.");
-        }
-        else {
-            Serial.println("System Disarmed.");
-        }
-    }
+/*** Calculates roll angle based on complementary filter results of IMU measurements ***/
+float getRollAngle() {
+    // Declare and initialize variables.
+    oldAngle = currentAngle;
+    float accelAngle = atan2(A_y, sqrt((A_x*A_x) + (A_z*A_z))) * 180 / PI;
     
-    if (armed)
-        digitalWrite(LED, HIGH);
-    else
-        digitalWrite(LED, LOW);
+    return HPF*(currentAngle + (G_x*samplePeriod/1000000)) + (1-HPF)*accelAngle;
 }
 
 
-/*** Helper function to send SMS alert ***/
-void sendAlert() {
-    if (debug)
-        Serial.println("Motion Detected! SMS Alert Sent!");
-    else
-        fona.sendSMS(smsaddr, smsmsg);
+/*** Helper Function to calculate percent change ***/
+float percentChange(float newNum, float oldNum) {
+    float PC = abs(((newNum - oldNum)/(oldNum)) * 100);
 
-    alertOn = true;
+    if (PC < 1000) {
+        if (verbosity) {
+            Serial.print("Percent Change: ");
+            Serial.println(PC);
+        }
+        
+        return PC;
+    }
+    else
+        return 0;
+}
+
+
+/*** Helper Function to trigger SMS alert ***/
+void triggerSMS() {
+    Serial.println("SMS Alert Sent!");
+    onAlert = true;
+    digitalWrite(TRIGGER_PIN, HIGH);
+    delay(100);
+    digitalWrite(TRIGGER_PIN, LOW);
 }
 
 
@@ -90,54 +80,75 @@ void sendAlert() {
 void setup() {
     // Initialize state.
     armed = false;
-    alertOn = false;
-    newState = false;
-    newMotionDetected = false;
+    onAlert = false;
+    newSample = false;
     
     // Set pins.
-    pinMode(RF_RX, INPUT_PULLUP);
-    pinMode(LED, OUTPUT);
+    pinMode(TRIGGER_PIN, OUTPUT);
+    pinMode(TRIGGER_RST, OUTPUT);
 
     // Initialize serial port.
-    if (debug) {
-        Serial.begin(115200);
-        while (!Serial);
-    }
-    else {
-        Serial1.begin(4800);
-        if (!fona.begin(Serial1))
-            while (1);
+    Serial.begin(115200);
+    while (!Serial);
+
+    // Print instructions and set initial state.
+    Serial.println("Enter 'A' to arm system or 'D' to disarm at any time");
+    Serial.println("Please set initial state.");
+    while (!Serial.available());
+    if (Serial.available()) {
+        command = Serial.read();
+        if (command == 'A') {
+            Serial.println("Ok. System Armed.");
+            armed = true;
+        }
+        else if (command == 'D') {
+            Serial.println("Ok. System Disarmed.");
+            armed = false;
+            onAlert = false;
+        }
     }
 
-    // Attach interrupt for RF remote.
-    attachInterrupt(digitalPinToInterrupt(RF_RX), notifyChangeOfState, RISING);
-
-    // Initialize IMU and set interrupt for motion detection.
+    // Initialize IMU, set ranges, and get initial angle.
     CurieIMU.begin();
-    CurieIMU.attachInterrupt(detectMotion);
+    CurieIMU.setAccelerometerRange(15);
+    CurieIMU.setGyroRange(250);
+    CurieIMU.readAccelerometerScaled(A_x, A_y, A_z);
+    currentAngle = atan2(A_y, sqrt((A_x*A_x) + (A_z*A_z))) * 180 / PI;
+    oldAngle = currentAngle;
 
-    // Enable Motion Detection.
-    CurieIMU.setDetectionThreshold(CURIE_IMU_MOTION, 50); // 20mg
-    CurieIMU.setDetectionDuration(CURIE_IMU_MOTION, 10);  // trigger times of consecutive slope data points
-    CurieIMU.interrupts(CURIE_IMU_MOTION);
-
-    // Disable motion interrupt until system is armed.
-    CurieIMU.noInterrupts(CURIE_IMU_MOTION);
+    // Initialize CurieTimer.
+    CurieTimerOne.start(samplePeriod, &sampleIMU);
 }
 
 
 /*** Main Control Loop ***/
 void loop() {
-    // Check for change in armed/disarmed state.
-    if (newState) {
-        changeState();
-        newState = false;
+    while (Serial) {
+    
+        // Check for arm/disarm command.
+        if (Serial.available()) {
+            command = Serial.read();
+            if (command == 'A') {
+                armed = true;
+                Serial.println("Ok. System Armed.");
+            }
+            else if (command == 'D') {
+                armed = false;
+                onAlert = false;
+                Serial.println("Ok. System Disarmed.");
+                digitalWrite(TRIGGER_RST, HIGH);
+                delay(100);
+                digitalWrite(TRIGGER_RST, LOW);
+            }
+        }
+    
+        // Check for potential thefts.
+        if (newSample) {
+            currentAngle = getRollAngle();
+            if (armed && (percentChange(currentAngle, oldAngle) > sensitvity) && !onAlert)
+                triggerSMS();
+                
+            newSample = false;
+        }
     }
-
-    // Check whether motion has been detected.
-    if (newMotionDetected) {
-        if (!alertOn && armed)
-            sendAlert();
-        newMotionDetected = false;
-    }  
 }
