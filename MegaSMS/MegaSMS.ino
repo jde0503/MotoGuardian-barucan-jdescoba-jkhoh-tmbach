@@ -48,4 +48,8 @@ void loop() {
     }
     else if (analogRead(TRIGGER_RST) >= TRIGGER_THRESH)
         allowMsg = true;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> parent of b796ae7... Arduino Changes
