@@ -13,15 +13,15 @@
 
 
 // Define global constants.
-#define FONA_RST 4
-#define RF_RX 8
+#define FONA_RST 2
+#define RF_RX 7
 #define LED 13
-const bool debug = false;  // Set to false and reupload before using with FONA.
+const bool debug = true;  // Set to false and reupload before using with FONA.
 char smsaddr[] = "+18317940460";
 char smsmsg[] = "This is a message from your MotoGuardian. A threat to your vehicle has been detected. "
                 "Please inspect it.\n\nIf this was a false alarm, you may reset the system by disarming "
                 "and then re-arming your MotoGuardian.\n\nIf your vehicle has been stolen, please call 9-1-1 "
-                "to report the theft, and follow this link <insert-link-here> to begin tracking your vehicle.";
+                "to report the theft and login to you MotoGuardian online dashboard begin tracking your vehicle.";
 
 
 // Declare and initialize global variables.
@@ -89,13 +89,13 @@ void sendAlert() {
 /*** Setup Function. Run once @ power up. ***/
 void setup() {
     // Initialize state.
-    armed = false;
+    armed = true;
     alertOn = false;
     newState = false;
     newMotionDetected = false;
     
     // Set pins.
-    pinMode(RF_RX, INPUT_PULLUP);
+    pinMode(RF_RX, INPUT);
     pinMode(LED, OUTPUT);
 
     // Initialize serial port.
@@ -117,7 +117,7 @@ void setup() {
     CurieIMU.attachInterrupt(detectMotion);
 
     // Enable Motion Detection.
-    CurieIMU.setDetectionThreshold(CURIE_IMU_MOTION, 50); // 20mg
+    CurieIMU.setDetectionThreshold(CURIE_IMU_MOTION, 120); // 20mg
     CurieIMU.setDetectionDuration(CURIE_IMU_MOTION, 10);  // trigger times of consecutive slope data points
     CurieIMU.interrupts(CURIE_IMU_MOTION);
 
@@ -139,5 +139,5 @@ void loop() {
         if (!alertOn && armed)
             sendAlert();
         newMotionDetected = false;
-    }  
+    }
 }

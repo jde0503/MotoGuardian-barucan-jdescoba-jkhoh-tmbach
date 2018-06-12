@@ -2,9 +2,8 @@
 * Author: Team MotoGuardian
 * Class:  ECE 140B
 *
-* File Name: MotoGuardianArduino.ino
-* Description: Main file for MotoGuardian theft and crash detection and alert 
-*              software.
+* File Name: AngleDetection.ino
+* Description: Detects angle using IMU.
 ******************************************************************************/
 /*** Include necessary libraries ***/
 #include <CurieTimerOne.h>
